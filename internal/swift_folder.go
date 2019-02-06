@@ -8,7 +8,6 @@ import (
 	"github.com/tamalsaha/wal-g-demo/tracelog"
 	"io"
 	"io/ioutil"
-	"os"
 	"strings"
 )
 
@@ -29,53 +28,16 @@ func NewSwiftFolder(connection *swift.Connection, container swift.Container, pat
 }
 
 func ConfigureSwiftFolder(prefix string) (StorageFolder, error) {
-	swiftCredentials := getSwiftCredentials()
-	username := swiftCredentials["user"]
-	key := swiftCredentials["key"]
-	authURL := swiftCredentials["authURL"]
-	authType := swiftCredentials["authType"]
-	if swiftCredentials["exists"] != "yes" {
-		return nil, NewSwiftFolderError(errors.New("Credential error"),
-			"Either the OS_USERNAME, OS_PASSWORD or OS_AUTH_URL environment variable is not set")
+	connection := new(swift.Connection)
+	//users must set conventional openStack environment variables: username, key, auth-url, tenantName, region etc
+	err := connection.ApplyEnvironment()
+	if err != nil {
+		return nil, NewSwiftFolderError(err, "Unable to apply env variables")
 	}
-	var region,tenantID,tenantName string
-	// v2 and v3 authentication require tenant ID or name as well
-	if authType != "v1"{
-		tenantID = swiftCredentials["tenantID"]
-		tenantName = swiftCredentials["tenantName"]
-		region = swiftCredentials["region"]
-	}
-	//v3 authentication requires tenant id, domain name, domain
-	if authType!= "v2" && authType != "v1"{
-		//domain name, id, and such
-	}
-	var connection *swift.Connection
-
-	if swiftCredentials["authType"] == "v1"{
-		// Create a v1 auth connection
-		connection = &swift.Connection{
-			UserName: username,
-			ApiKey: key,
-			AuthUrl: authURL,
-			Region:region,
-		}
-	}else if swiftCredentials["authType"] == "v2"{
-		// Create a v2 auth connection
-		connection = &swift.Connection{
-			UserName: username,
-			ApiKey: key,
-			AuthUrl: authURL,
-			Tenant: tenantName,
-			TenantId:tenantID,
-			Region:region,
-		}
-	}
-	// Authenticate
-	err := connection.Authenticate()
+	err = connection.Authenticate()
 	if err != nil {
 		return nil, NewSwiftFolderError(err, "Unable to authenticate Swift connection")
 	}
-
 	containerName, path, err := getPathFromPrefix(prefix)
 	if err != nil {
 		return nil, NewSwiftFolderError(err, "Unable to get container name and path from prefix %v",prefix)
@@ -181,35 +143,4 @@ func (folder *SwiftFolder) DeleteObjects(objectRelativePaths []string) error {
 		}
 	}
 	return nil
-}
-
-func getSwiftCredentials() map[string]string {
-	credentials := make(map[string]string)
-	userName := os.Getenv("OS_USERNAME")
-	password := os.Getenv("OS_PASSWORD")
-	authURL := os.Getenv("OS_AUTH_URL")
-
-	//swiftKey := os.Getenv("SWIFT_API_KEY")
-	//swiftUser := os.Getenv("SWIFT_API_USER")
-	//swiftAuthURL := os.Getenv("SWIFT_AUTH_URL")
-
-	region := os.Getenv("OS_REGION_NAME")
-	tenantName := os.Getenv("OS_TENANT_NAME")
-	tenantID := os.Getenv("OS_TENANT_ID")
-	if userName != "" && password != "" && authURL != ""{
-		credentials["authType"] = "v1"
-		credentials["exists"] = "yes"
-	}
-
-	if tenantID != "" || tenantName != ""{
-		credentials["authType"] = "v2"
-	}
-	credentials["user"] = userName
-	credentials["key"] = password
-	credentials["authURL"]= authURL
-	credentials["region"] = region
-	credentials["tenantID"] = tenantID
-	credentials["tenantName"] = tenantName
-
-	return credentials
 }
