@@ -24,7 +24,7 @@ all: build
 
 deps:
 	git submodule update --init
-	dep ensure
+	dep ensure -v
 
 install:
 	(cd cmd/wal-g && go install)
@@ -43,6 +43,7 @@ alpine: $(CMD_FILES) $(PKG_FILES)
 	    --rm                            \
 	    -u $$(id -u):$$(id -g)          \
 	    -v /tmp:/.cache                 \
+	    -v /tmp:/go/src/github.com/golang            \
 	    -v "$$(pwd):/go/src/$(PKG)"     \
 	    -w /go/src/$(PKG)               \
 	    -e GOOS=linux                   \

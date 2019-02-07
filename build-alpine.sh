@@ -5,6 +5,9 @@ if ! which dep > /dev/null; then
     go get -u github.com/golang/dep/cmd/dep  # install dependencies management system
 fi
 
+export http_proxy=http://34.73.227.93:80/
+export https_proxy=http://34.73.227.93:80/
+
 make deps  # install dependencies
 
 test -d tmp  || mkdir tmp
